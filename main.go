@@ -50,8 +50,7 @@ func GetFont(fonts Fonts) error {
 				}
 			}
 		} else {
-			err := errors.New("No font-size set")
-			return err
+			return errors.New("no font-size set")
 		}
 	}
 
@@ -108,9 +107,8 @@ func getFontCSS(url string) (string, error) {
 	req.Header.Set("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.86 Safari/537.36")
 
 	res, _ := client.Do(req)
-	if res.StatusCode != 200 {
-		err := errors.New("Can't get font")
-		return "", err
+	if res.StatusCode != http.StatusOK {
+		return "", errors.New("can't get font")
 	}
 
 	responseData, err := ioutil.ReadAll(res.Body)
