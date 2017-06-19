@@ -13,7 +13,7 @@ func TestGetFont(*testing.T) {
 	fonts3.CssFile = "twofonts2.css"
 
 	font := Font{}
-	font.Name = "Open+Sans"
+	font.Name = "Open Sans"
 	font.FontPath = ""
 	font.Size = append(font.Size, 300, 600)
 

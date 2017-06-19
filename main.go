@@ -26,13 +26,13 @@ type Font struct {
 }
 
 type fontLink struct {
-	url      string
+	link     string
 	filename string
 }
 
 // GetFont from google as woff2
 func GetFont(fonts Fonts) error {
-	var url string
+	var link string
 	var fontStrings []string
 	var fontLinks []fontLink
 	var cssFile string
@@ -42,9 +42,10 @@ func GetFont(fonts Fonts) error {
 		if font.Size != nil {
 			for _, v := range font.Size {
 				size := strconv.Itoa(v)
-				filename := font.FontPath + font.Name + "_" + size + ".woff2" // PROBLEM HERE
-				url = "https://fonts.googleapis.com/css?family=" + font.Name + ":" + size
-				fontStrings, fontLinks, err = fontData(fontStrings, fontLinks, filename, url)
+				font.Name = strings.Replace(font.Name, " ", "+", -1)
+				filename := font.FontPath + font.Name + "_" + size + ".woff2"
+				link = "https://fonts.googleapis.com/css?family=" + font.Name + ":" + size
+				fontStrings, fontLinks, err = fontData(fontStrings, fontLinks, filename, link)
 				if err != nil {
 					return err
 				}
@@ -55,8 +56,8 @@ func GetFont(fonts Fonts) error {
 	}
 
 	for i, v := range fontLinks {
-		fontStrings[i] = strings.Replace(fontStrings[i], v.url, "/"+v.filename, -1)
-		err := downloadFile(v.filename, v.url)
+		fontStrings[i] = strings.Replace(fontStrings[i], v.link, "/"+v.filename, -1)
+		err := downloadFile(v.filename, v.link)
 		if err != nil {
 			return err
 		}
@@ -86,10 +87,10 @@ func GetFont(fonts Fonts) error {
 	return nil
 }
 
-func fontData(fontStrings []string, fontLinks []fontLink, filename, url string) ([]string, []fontLink, error) {
+func fontData(fontStrings []string, fontLinks []fontLink, filename, link string) ([]string, []fontLink, error) {
 	re := regexp.MustCompile("https?:\\/\\/?[\\da-z\\.-]+\\.[a-z\\.]{2,6}[\\/\\w \\.-]*\\/?")
 
-	fontString, err := getFontCSS(url)
+	fontString, err := getFontCSS(link)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -101,9 +102,9 @@ func fontData(fontStrings []string, fontLinks []fontLink, filename, url string) 
 	return fontStrings, fontLinks, nil
 }
 
-func getFontCSS(url string) (string, error) {
+func getFontCSS(link string) (string, error) {
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", url, nil)
+	req, _ := http.NewRequest("GET", link, nil)
 	req.Header.Set("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.86 Safari/537.36")
 
 	res, _ := client.Do(req)
@@ -124,7 +125,7 @@ func getFontCSS(url string) (string, error) {
 }
 
 // credit to https://stackoverflow.com/users/1511332/pablo-jomer
-func downloadFile(filepath string, url string) (err error) {
+func downloadFile(filepath string, link string) (err error) {
 
 	// Create the file
 	out, err := os.Create(filepath)
@@ -134,7 +135,7 @@ func downloadFile(filepath string, url string) (err error) {
 	defer out.Close()
 
 	// Get the data
-	resp, err := http.Get(url)
+	resp, err := http.Get(link)
 	if err != nil {
 		return err
 	}

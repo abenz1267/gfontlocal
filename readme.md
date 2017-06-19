@@ -15,7 +15,7 @@ Example:
 ```
 fontfolder := "public/css/"
 
-font := gfontlocal.Font{"Open+Sans", []int{400, 600}, fontfolder}
+font := gfontlocal.Font{"Open Sans", []int{400, 600}, fontfolder}
 font2 := gfontlocal.Font{"Montserrat", []int{200}, fontfolder}
 
 fonts := gfontlocal.Fonts{[]gfontlocal.Font{font, font2}, "public/css/font.css"}
