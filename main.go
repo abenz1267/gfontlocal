@@ -117,8 +117,9 @@ func getFontCSS(link, format string) (string, error) {
 
 	res, _ := client.Do(req)
 	if res.StatusCode != http.StatusOK {
-		return "", errors.New("can't get font")
+		return "", errors.New("can't get font. Status: " + strconv.Itoa(res.StatusCode))
 	}
+	defer res.Body.Close()
 
 	responseData, err := ioutil.ReadAll(res.Body)
 	if err != nil {
@@ -146,8 +147,13 @@ func downloadFile(filepath string, link string) (err error) {
 
 	// Get the data
 	resp, err := http.Get(link)
-	if err != nil {
-		return err
+	if err != nil || resp.StatusCode != http.StatusOK {
+		switch err {
+		case nil:
+			return errors.New("can't get font. Status: " + strconv.Itoa(resp.StatusCode))
+		default:
+			return err
+		}
 	}
 	defer resp.Body.Close()
 
