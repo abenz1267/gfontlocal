@@ -5,12 +5,15 @@ import "testing"
 func TestGetFont(*testing.T) {
 	fonts := Fonts{}
 	fonts.CssFile = "onefont.css"
+	fonts.Format = "ttf"
 
 	fonts2 := Fonts{}
 	fonts2.CssFile = "twofonts.css"
+	fonts2.Format = "ttf"
 
 	fonts3 := Fonts{}
 	fonts3.CssFile = "twofonts2.css"
+	fonts3.Format = "ttf"
 
 	font := Font{}
 	font.Name = "Open Sans"

@@ -15,6 +15,7 @@ import (
 //Fonts type
 type Fonts struct {
 	Fonts   []Font
+	Format  string
 	CssFile string
 }
 
@@ -38,14 +39,19 @@ func GetFont(fonts Fonts) error {
 	var cssFile string
 	var err error
 
+	if fonts.Format == "" {
+		fonts.Format = "woff2"
+	}
+
 	for _, font := range fonts.Fonts {
 		if font.Size != nil {
 			for _, v := range font.Size {
 				size := strconv.Itoa(v)
 				font.Name = strings.Replace(font.Name, " ", "+", -1)
-				filename := font.FontPath + font.Name + "_" + size + ".woff2"
+
+				filename := font.FontPath + font.Name + "_" + size + "." + fonts.Format
 				link = "https://fonts.googleapis.com/css?family=" + font.Name + ":" + size
-				fontStrings, fontLinks, err = fontData(fontStrings, fontLinks, filename, link)
+				fontStrings, fontLinks, err = fontData(fontStrings, fontLinks, filename, link, fonts.Format)
 				if err != nil {
 					return err
 				}
@@ -87,10 +93,10 @@ func GetFont(fonts Fonts) error {
 	return nil
 }
 
-func fontData(fontStrings []string, fontLinks []fontLink, filename, link string) ([]string, []fontLink, error) {
+func fontData(fontStrings []string, fontLinks []fontLink, filename, link, format string) ([]string, []fontLink, error) {
 	re := regexp.MustCompile("https?:\\/\\/?[\\da-z\\.-]+\\.[a-z\\.]{2,6}[\\/\\w \\.-]*\\/?")
 
-	fontString, err := getFontCSS(link)
+	fontString, err := getFontCSS(link, format)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -102,10 +108,12 @@ func fontData(fontStrings []string, fontLinks []fontLink, filename, link string)
 	return fontStrings, fontLinks, nil
 }
 
-func getFontCSS(link string) (string, error) {
+func getFontCSS(link, format string) (string, error) {
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", link, nil)
-	req.Header.Set("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.86 Safari/537.36")
+	req, _ := http.NewRequest("GET", link+"&amp;subset=latin-ext,vietnamese", nil)
+	if format == "woff2" {
+		req.Header.Set("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.86 Safari/537.36")
+	}
 
 	res, _ := client.Do(req)
 	if res.StatusCode != http.StatusOK {
@@ -117,11 +125,13 @@ func getFontCSS(link string) (string, error) {
 		log.Fatal(err)
 	}
 
-	responseString := string(responseData)
-	firstSplit := strings.SplitAfterN(responseString, "/* latin */", -1)
-	firstFont := strings.SplitAfterN(firstSplit[1], "}", -1)[0]
+	font := string(responseData)
+	if format == "woff2" {
+		firstSplit := strings.SplitAfterN(font, "/* latin */", -1)
+		font = strings.SplitAfterN(firstSplit[1], "}", -1)[0]
+	}
 
-	return firstFont, err
+	return font, err
 }
 
 // credit to https://stackoverflow.com/users/1511332/pablo-jomer
