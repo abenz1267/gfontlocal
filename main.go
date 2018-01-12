@@ -1,167 +1,119 @@
 package gfontlocal
 
 import (
-	"errors"
-	"io"
+	"bytes"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-//Fonts type
+// Fonts is a container struct
 type Fonts struct {
-	Fonts   []Font
-	Format  string
-	CssFile string
+	Fonts      []*Font
+	CSSFolder  string
+	FontFolder string
+	URL        string
+	SCSS       bool
 }
 
-//Font type
+// Font describes the according font you want to download
 type Font struct {
-	Name     string
-	Size     []int
-	FontPath string
+	Name    string
+	Weights string
 }
 
-type fontLink struct {
-	link     string
-	filename string
-}
+// Download method for Fonts
+func (f *Fonts) Download() {
+	log.Println("Downloading fonts...")
+	//var responses []string
+	url := "https://fonts.googleapis.com/css?family="
 
-// GetFont from google as woff2
-func GetFont(fonts Fonts) error {
-	var link string
-	var fontStrings []string
-	var fontLinks []fontLink
-	var cssFile string
-	var err error
+	// replace spaces in fontname with "+" to make it url-friendly and build request url
+	for i := range f.Fonts {
+		f.Fonts[i].Name = strings.Replace(f.Fonts[i].Name, " ", "+", -1)
+		url = url + f.Fonts[i].Name + ":" + f.Fonts[i].Weights
 
-	if fonts.Format == "" {
-		fonts.Format = "woff2"
-	}
-
-	for _, font := range fonts.Fonts {
-		if font.Size != nil {
-			for _, v := range font.Size {
-				size := strconv.Itoa(v)
-				font.Name = strings.Replace(font.Name, " ", "+", -1)
-
-				filename := font.FontPath + font.Name + "_" + size + "." + fonts.Format
-				link = "https://fonts.googleapis.com/css?family=" + font.Name + ":" + size
-				fontStrings, fontLinks, err = fontData(fontStrings, fontLinks, filename, link, fonts.Format)
-				if err != nil {
-					return err
-				}
-			}
-		} else {
-			return errors.New("no font-size set")
+		if len(f.Fonts) > 1 && i < len(f.Fonts)-1 {
+			url = url + "|"
 		}
 	}
 
-	for i, v := range fontLinks {
-		fontStrings[i] = strings.Replace(fontStrings[i], v.link, "/"+v.filename, -1)
-		err := downloadFile(v.filename, v.link)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, v := range fontStrings {
-		cssFile = cssFile + strings.TrimSpace(v)
-	}
-
-	if _, err := os.Stat(fonts.CssFile); os.IsNotExist(err) {
-		err = ioutil.WriteFile(fonts.CssFile, []byte(cssFile), 0644)
-		if err != nil {
-			return err
-		}
-	} else {
-		err := os.Remove(fonts.CssFile)
-		if err != nil {
-			return err
-		}
-
-		err = ioutil.WriteFile(fonts.CssFile, []byte(cssFile), 0644)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func fontData(fontStrings []string, fontLinks []fontLink, filename, link, format string) ([]string, []fontLink, error) {
-	re := regexp.MustCompile("https?:\\/\\/?[\\da-z\\.-]+\\.[a-z\\.]{2,6}[\\/\\w \\.-]*\\/?")
-
-	fontString, err := getFontCSS(link, format)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	fontLink := fontLink{re.FindString(fontString), filename}
-	fontStrings = append(fontStrings, fontString)
-	fontLinks = append(fontLinks, fontLink)
-
-	return fontStrings, fontLinks, nil
-}
-
-func getFontCSS(link, format string) (string, error) {
+	// download fonts
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", link+"&amp;subset=latin-ext,vietnamese", nil)
-	if format == "woff2" {
-		req.Header.Set("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.86 Safari/537.36")
-	}
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.86 Safari/537.36")
 
 	res, _ := client.Do(req)
 	if res.StatusCode != http.StatusOK {
-		return "", errors.New("can't get font. Status: " + strconv.Itoa(res.StatusCode))
+		log.Fatal("can't get font. Status: " + strconv.Itoa(res.StatusCode))
 	}
 	defer res.Body.Close()
 
-	responseData, err := ioutil.ReadAll(res.Body)
+	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	font := string(responseData)
-	if format == "woff2" {
-		firstSplit := strings.SplitAfterN(font, "/* latin */", -1)
-		font = strings.SplitAfterN(firstSplit[1], "}", -1)[0]
+	re := regexp.MustCompile("(?s)\\/\\* latin \\*\\/.*?\\}")
+	fontFaces := re.FindAll(data, -1)
+
+	// extract all links
+	var fontLinks []map[string][]byte
+
+	for i, v := range fontFaces {
+		fontMap := make(map[string][]byte)
+		re = regexp.MustCompile("https?:\\/\\/?[\\da-z\\.-]+\\.[a-z\\.]{2,6}[\\/\\w \\.-]*\\/?")
+		fontMap["link"] = re.Find(v)
+
+		re = regexp.MustCompile("\\('.+?'\\)")
+
+		// replace ' and space from name
+		cleanName := bytes.Replace(re.Find(v), []byte(" "), []byte("_"), -1)
+		cleanName = bytes.Replace(cleanName, []byte("('"), []byte(""), -1)
+		cleanName = bytes.Replace(cleanName, []byte("')"), []byte(""), -1)
+		fontMap["name"] = cleanName
+
+		fontFaces[i] = bytes.Replace(fontFaces[i], fontMap["link"], []byte(f.URL+"/"+string(fontMap["name"])+".woff2"), 1)
+
+		fontLinks = append(fontLinks, fontMap)
 	}
 
-	return font, err
-}
-
-// credit to https://stackoverflow.com/users/1511332/pablo-jomer
-func downloadFile(filepath string, link string) (err error) {
-
-	// Create the file
-	out, err := os.Create(filepath)
-	if err != nil {
-		return err
+	// make css string
+	var cssString []byte
+	for _, v := range fontFaces {
+		cssString = append(cssString, v...)
 	}
-	defer out.Close()
 
-	// Get the data
-	resp, err := http.Get(link)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		switch err {
-		case nil:
-			return errors.New("can't get font. Status: " + strconv.Itoa(resp.StatusCode))
-		default:
-			return err
+	if f.SCSS {
+		if err := ioutil.WriteFile(f.CSSFolder+"/_fonts.scss", cssString, 0644); err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		if err := ioutil.WriteFile(f.CSSFolder+"/fonts.css", cssString, 0644); err != nil {
+			log.Fatal(err)
 		}
 	}
-	defer resp.Body.Close()
 
-	// Writer the body to file
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		return err
+	// download woff2
+	for _, v := range fontLinks {
+		req, _ := http.NewRequest("GET", string(v["link"]), nil)
+
+		res, _ := client.Do(req)
+		if res.StatusCode != http.StatusOK {
+			log.Fatal("can't get font. Status: " + strconv.Itoa(res.StatusCode))
+		}
+
+		data, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if err := ioutil.WriteFile(f.FontFolder+"/"+string(v["name"])+".woff2", data, 0644); err != nil {
+			log.Fatal(err)
+		}
+		res.Body.Close()
 	}
-
-	return nil
 }

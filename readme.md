@@ -2,30 +2,24 @@
 
 Gfontlocal allows you to serve up-to-date Google Fonts locally.
 
-Only works for latin and woff2/ttf.
+Only works for latin woff2 fonts.
 
 # Usage
+
 ```
 go get -u github.com/abenz1267/gfontlocal
 ```
 
-
 Example:
 
 ```
-fontfolder := "public/css/"
+firstFont := Font{Name: "Open Sans", Weights: "300,400"}
+secondFont := Font{Name: "Montserrat", Weights: "200,300"}
 
-font := gfontlocal.Font{"Open Sans", []int{400, 600}, fontfolder}
-font2 := gfontlocal.Font{"Montserrat", []int{200}, "woff2",fontfolder} // woff2 is the default type, you can also just "" instead of "woff2"
+fonts := Fonts{Fonts: []*Font{&firstFont, &secondFont}, CSSFolder: "./test/css", FontFolder: "./test/fonts", URL: "/public/fonts", SCSS: true}
 
-fonts := gfontlocal.Fonts{[]gfontlocal.Font{font, font2}, "public/css/font.css"}
-
-err := gfontlocal.GetFont(fonts)
-if err != nil {
-  fmt.Println(err)
-}
+fonts.Download()
 ```
-
 
 # Disclaimer
 
