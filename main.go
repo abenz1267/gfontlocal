@@ -17,6 +17,7 @@ type Fonts struct {
 	FontFolder string
 	URL        string
 	SCSS       bool
+	Dev        bool
 }
 
 // Font describes the according font you want to download
@@ -81,19 +82,21 @@ func (f *Fonts) Download() {
 		fontLinks = append(fontLinks, fontMap)
 	}
 
-	// make css string
-	var cssString []byte
-	for _, v := range fontFaces {
-		cssString = append(cssString, v...)
-	}
-
-	if f.SCSS {
-		if err := ioutil.WriteFile(f.CSSFolder+"/_fonts.scss", cssString, 0644); err != nil {
-			log.Fatal(err)
+	if f.Dev {
+		// make css string
+		var cssString []byte
+		for _, v := range fontFaces {
+			cssString = append(cssString, v...)
 		}
-	} else {
-		if err := ioutil.WriteFile(f.CSSFolder+"/fonts.css", cssString, 0644); err != nil {
-			log.Fatal(err)
+
+		if f.SCSS {
+			if err := ioutil.WriteFile(f.CSSFolder+"/_fonts.scss", cssString, 0644); err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			if err := ioutil.WriteFile(f.CSSFolder+"/fonts.css", cssString, 0644); err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
 
