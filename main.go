@@ -18,6 +18,7 @@ type Fonts struct {
 	URL        string
 	SCSS       bool
 	Dev        bool
+	Display    string
 }
 
 // Font describes the according font you want to download
@@ -86,6 +87,15 @@ func (f *Fonts) Download() {
 		// make css string
 		var cssString []byte
 		for _, v := range fontFaces {
+			var displayString strings.Builder
+			displayString.WriteString("\nfont-display:")
+			displayString.WriteString(f.Display)
+			displayString.WriteString(";")
+
+			vPartials := bytes.SplitAfter(v, []byte("{"))
+			vPartials[0] = append(vPartials[0], []byte(displayString.String())...)
+			v = bytes.Join(vPartials, nil)
+
 			cssString = append(cssString, v...)
 		}
 
